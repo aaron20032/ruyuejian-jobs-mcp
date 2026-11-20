@@ -1,0 +1,33 @@
+{
+  "name": "ruyuejian-jobs-mcp",
+  "version": "0.1.0",
+  "mcpName": "com.ruyuejian/ruyuejian-jobs-mcp",
+  "description": "Search China tech jobs from official company career pages with traceable sources and daily refresh.",
+  "type": "module",
+  "bin": {
+    "ruyuejian-jobs-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "eval:live": "node scripts/eval-live.mjs",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

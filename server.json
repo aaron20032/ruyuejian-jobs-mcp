@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.ruyuejian/ruyuejian-jobs-mcp",
+  "title": "Ruyuejian Jobs",
+  "description": "Search China tech jobs from official career pages with source URLs and daily refresh.",
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "ruyuejian-jobs-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
