@@ -4,6 +4,11 @@
   "title": "Ruyuejian Jobs",
   "description": "Search China tech jobs from official career pages with source URLs and daily refresh.",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aaron20032/ruyuejian-jobs-mcp.git",
+    "source": "github"
+  },
   "packages": [
     {
       "registryType": "npm",

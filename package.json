@@ -29,5 +29,10 @@
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aaron20032/ruyuejian-jobs-mcp.git"
+  },
+  "homepage": "https://github.com/aaron20032/ruyuejian-jobs-mcp"
 }
