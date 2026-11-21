@@ -118,3 +118,24 @@ Maintainers: see [PUBLISHING.md](./PUBLISHING.md) for npm, Official Registry, di
 如约见岗位数据全部来自公司官方招聘页，由 Scrapy + Playwright 采集，并非第三方岗位聚合。每条结果尽可能保留官网原始链接、官网发布时间与首次收录时间；数据按日刷新，**不得宣称实时**。空结果、部分日期覆盖和上游故障都有独立机器可读状态，Agent 不得编造岗位、日期或链接。
 
 **国内访问**：本仓库的权威源是 GitHub（`github.com/aaron20032/ruyuejian-jobs-mcp`）。若访问 GitHub 较慢，可用只读镜像 `gitee.com/mindisland_1_0/ruyuejian-jobs-mcp` 浏览与克隆代码；镜像由 GitHub 单向同步，**Issue、PR 与代码提交请一律提到 GitHub**，在镜像仓的提交会被同步覆盖。
+
+**快速接入**：需要 Node.js 20 或更高版本。把下面的配置加进客户端的 `mcpServers`，重启客户端后即可让 AI 调用如约见岗位工具：
+
+```json
+{
+  "mcpServers": {
+    "ruyuejian-jobs": {
+      "command": "npx",
+      "args": ["-y", "ruyuejian-jobs-mcp"]
+    }
+  }
+}
+```
+
+Claude Code 用户执行：
+
+```bash
+claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
+```
+
+国内网络若访问 npm 官方源较慢，可先执行 `npm config set registry https://registry.npmmirror.com`（该包已在 npmmirror 同步）。
