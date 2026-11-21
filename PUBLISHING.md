@@ -54,6 +54,70 @@ npm pack --dry-run
 
 7. 用 Claude Desktop 或 Cursor 的真实配置做首次安装验证，确认能列出四个工具，并完成一次搜索和详情调用。不要只以 npm 页面存在作为验收。
 
+## 1b. 国内只读镜像（Gitee）
+
+GitHub 仓库 `github.com/aaron20032/ruyuejian-jobs-mcp` 是**唯一权威源**；Gitee 仓库 `gitee.com/mindisland_1_0/ruyuejian-jobs-mcp` 只是给国内读者用的**只读镜像**（国内访问 GitHub 可能慢）。同步方向恒为 GitHub → Gitee 单向。
+
+- 提交、PR、Issue 与 npm / MCP Registry 元数据一律指向 GitHub；**禁止**把开发入口、`package.json.repository.url`、`server.json.repository.url` 或文档来源链接改指镜像地址。
+- 镜像仓永远不要手工提交：Gitee 同步会覆盖目标仓库的分支、标签与提交记录。
+- **命名空间易拼错**：Gitee 侧路径是 `mindisland_1_0`（账号昵称在页面面包屑里显示为 `Admin`），与 GitHub 侧的 `aaron20032` 并不同名；照 GitHub 用户名去拼 Gitee 地址只会得到 404。
+
+### 镜像同步操作
+
+1. 先按第 1 步把主仓库 `mcp/` 的改动推到 GitHub `main`。
+2. 在 Gitee 仓库首页点「同步」（同步来源已配为 `https://github.com/aaron20032/ruyuejian-jobs-mcp.git`）；或改用「管理 → 仓库镜像管理」的 Pull 方向镜像实现自动同步（需 GitHub 私人令牌，`repo` 必选；勾选自动同步还需 `admin:repo_hook`，它在 GitHub 侧自动生成 webhook）。
+3. 复核两边一致：
+
+   ```bash
+   git ls-remote --heads https://gitee.com/mindisland_1_0/ruyuejian-jobs-mcp.git
+   git ls-remote --heads git@github.com:aaron20032/ruyuejian-jobs-mcp.git
+   ```
+
+   两边 `refs/heads/main` 的 sha 必须相同。
+
+   2026-11-21 首次建镜像已复核通过：两边 `refs/heads/main` 同为 `ecbba0a`，Gitee 仓库页与 `raw/main/README.md` 均返回 200（开源可见，匿名可读）。
+
+### 镜像仓已固化的设置（勿改回）
+
+- 仓库状态 = **开始**。`暂停` / `关闭` 会连 Push 一起禁掉（Gitee 官方权限矩阵），镜像就再也同步不进来；这两档还会把仓库从项目列表隐藏。
+- 基本信息：可见性 = **开源**（私有仓起不到国内可读的作用）；「介绍」栏建议固定写「如约见招聘 MCP 的国内只读镜像，权威源 https://github.com/aaron20032/ruyuejian-jobs-mcp ，Issue / PR 请提 GitHub」，避免国内留言沉在没人看的渠道。
+- 保护分支 `main`（标准模式，权重 1）：可推送代码成员 = 仓库所有者本人；可合并 Pull Request 成员 = **禁止任何人**。
+- 功能设置：勾选「关闭 Issue 新建、更新」与「关闭 Pull Request 新建、更新」；取消「接受轻量级 Pull Request」（否则无需 fork 也能发起 PR，等于留侧门）、「启用 Wiki 功能」（Wiki 不在同步范围内，会攒下 GitHub 侧不存在的漂移内容）、「允许仓库文件在线编辑」。
+- **不要**勾「禁止仓库同步」——勾了会关闭同步按钮与强制同步，自断镜像链路。
+- 「禁止强制推送」「文件/目录只读」为付费企业版功能，社区版不可用，别指望它们兜底。
+
+### 同步姿势：split + merge（每次都要，勿改回）
+
+GitHub `main` 上有两笔在公开仓直接提交的元数据 commit（`552cd8e` 补 `repository`/`homepage`、`ecbba0a` 规范化 url），主仓库 `mcp/` 历史里没有对应影子，于是两边成了**并行两条线**：
+
+```
+08c8998 ── 552cd8e ── ecbba0a          ← GitHub main（tree 6ef0ef25）
+   └──── 55f12d5                        ← 主仓库 subtree split 产出（tree 6ef0ef25）
+```
+
+2026-11-21 实测：`git subtree split --prefix=mcp` 复用了同一根影子 `08c8998`（无 `git-subtree-dir` 标注也能确定性重算），新影子 `55f12d5` 的 tree 与 GitHub `main` 头 **完全相同**（`6ef0ef25`）。内容零差异，只是历史形状不同 ⇒ 直接把影子推到 `main` 必被拒（non-fast-forward，`ecbba0a` 不在影子链上）。
+
+固定做法（在公开仓做一次 merge，之后 push 就是快进）：
+
+```bash
+# 1) 主仓库：切出影子分支（分支名带日期，勿复用旧名）
+git subtree split --prefix=mcp -b mcp-sync-YYYYMMDD
+
+# 2) 公开仓工作副本：把影子合进 main（merge base = 08c8998，两侧 tree 相同 ⇒ 无冲突）
+cd ../ruyuejian-jobs-mcp
+git fetch ../ruyuejian mcp-sync-YYYYMMDD
+git merge --no-ff FETCH_HEAD -m "Sync mcp/ from main repo (subtree split <sha>)"
+
+# 3) 门禁 + 推送 + 镜像
+npm test && npm run build && npm run eval:live
+git push origin main
+```
+
+- 必须走 merge 而不是「复制文件再提交」：merge 是三方合并，主仓库里**删除**的文件会正确删除；目录复制会留下删不掉的僵尸文件。
+- merge 之后 `main` 里同时含两条线，**下次同步仍要重复这套 split + merge**（每次一个合并提交），这是并行历史的正常代价，不是故障。
+- 根治办法只有一条：**`mcp/` 的任何改动只在主仓库提交，公开仓不再手工提交**。本次之后照此执行。
+- 不推荐 `--force` / `--force-with-lease` 用纯影子链覆盖 `main`：会改写公开历史，npm 已发布包记录的 `gitHead`（`ecbba0a`）将失去引用。
+
 ## 2. 发布到 Official MCP Registry
 
 本项目使用域名命名空间 `com.ruyuejian`，因此采用 DNS 认证，不依赖某个 GitHub 个人账号命名空间。
