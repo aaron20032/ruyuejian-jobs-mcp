@@ -15,7 +15,7 @@ describe('JobsApi', () => {
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
       job_title: '前端', location: '北京', company_name: '腾讯', recruitment_type: 'social', sort: 'latest', limit: '20', offset: '40',
     });
-    expect(options.headers).toMatchObject({ Accept: 'application/json', 'User-Agent': 'ruyuejian-jobs-mcp/0.1.1' });
+    expect(options.headers).toMatchObject({ Accept: 'application/json', 'User-Agent': 'ruyuejian-jobs-mcp/0.1.2' });
     expect(options.headers).not.toHaveProperty('Authorization');
   });
 
