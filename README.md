@@ -139,3 +139,46 @@ claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 ```
 
 国内网络若访问 npm 官方源较慢，可先执行 `npm config set registry https://registry.npmmirror.com`（该包已在 npmmirror 同步）。
+
+### 支持的客户端
+
+本服务为标准 stdio 型 MCP，凡支持自定义 MCP 的客户端均可接入（本包已同步 npmmirror）。除 Claude Desktop / Cursor / Claude Code 外，以下国内主流客户端也在支持范围内，多数直接复用上方 `mcpServers` JSON。
+
+**桌面办公 Agent 客户端**
+
+| 客户端 | 接入方式 |
+| --- | --- |
+| WorkBuddy（腾讯） | 「专家 · 技能 · 连接器」→ 自定义连接器 → 配置 MCP，在 `~/.workbuddy/mcp.json`（用户级）或 `<项目>/.workbuddy/mcp.json`（项目级）的 `mcpServers` 中**合并**加入条目；配置不支持注释，首次连接需点「信任」 |
+| 豆包工作（字节） | 桌面客户端「技能 · 连接器 · 伙伴」→ 连接器 → 新建自定义连接器，传输类型选 STDIO，填 `npx` 命令与参数 |
+| 千问办公（阿里） | 桌面客户端「扩展」→「连接器」→ 添加，粘贴 `mcpServers` JSON 或手动配置选 STDIO |
+| Kimi Work（月之暗面） | 走插件体系：Plugin Builder 可导入官方 MCP Registry 中本包的 `server.json`（`com.ruyuejian/ruyuejian-jobs-mcp`）生成插件 |
+| Marvis（腾讯应用宝） | 工具箱 → 连接（MCP/CLI）→ 我的连接 → 自定义连接；传输类型以客户端表单为准 |
+| QClaw（腾讯电脑管家） | 设置或对话内配置；OpenClaw 系，`~/.openclaw/openclaw.json` 的 `mcpServers`（type: stdio）或 `openclaw mcp add` |
+| DeepSeek Harness | **不读 `mcpServers` JSON**：在 `~/.dsh/cordis.patch.yml` 用内置插件 `@deepseek-ai/dsh-mcp-client` 声明本服务（transport: stdio，command: npx，args: `["-y","ruyuejian-jobs-mcp"]`），YAML 结构以其官方文档为准 |
+| 百度搭子（DuMate） | **暂不可直连**：官方当前仅支持远程 streamableHttp/SSE 型 MCP，本地 stdio 包待远程形态上线后接入 |
+| 纳米 Work（360） | 内置 MCP/连接器生态；自定义本地 stdio 入口未见公开文档，**待验证** |
+| 金山灵犀（WPS 灵犀专业版） | 设置 → 连接器管理 → 自定义连接器，传输模式选 STDIO；配置文件加密，只能走 UI 表单 |
+| KroWork（快手） | 未见公开自定义 MCP 入口，**待验证** |
+| AStudio（科大讯飞） | 设置中启用 MCP；自定义 stdio 具体入口无公开文档，待确认 |
+
+**AI 编程客户端**
+
+| 客户端 | 接入方式 |
+| --- | --- |
+| Qoder / Qoder CN（阿里） | 终端执行下方命令，或在 MCP 设置中粘贴 `mcpServers` JSON |
+| TRAE（字节，含原豆包 MarsCode 插件） | MCP 设置页添加 stdio 类型服务，粘贴 `mcpServers` JSON；MarsCode 品牌已并入 TRAE，按 TRAE 入口接入 |
+| CodeBuddy（腾讯） | IDE 右上角 MCP 面板 → 手工粘贴 `mcpServers` JSON；CLI 版（CodeBuddy Code）用项目 `.mcp.json` |
+| 文心快码 Comate（百度） | 插件「···」→ MCP → 手动配置；项目级 `.comate/mcp.json` 或全局 `~/.comate/mcp.json` |
+| Kimi Code（月之暗面） | `~/.kimi-code/mcp.json`（项目级 `.kimi-code/mcp.json`）；CLI `kimi mcp add --transport stdio ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp` |
+| ZCode（智谱） | 设置 → MCP 服务器 → 添加（stdio 本地命令）或 JSON 模式粘贴 `mcpServers` |
+| 华为云码道（CodeArts 代码智能体） | 设置 → MCP 工具 → `mcp_settings.json`；**格式有差异**：本地服务用 `type: "local"`、`command` 为数组（如 `["npx","-y","ruyuejian-jobs-mcp"]`），勿照抄通用 JSON |
+| MiniMax Code | 添加服务器支持表单/JSON 模式（`mcpServers`，stdio 用 command/args） |
+| CodeGeeX（智谱） | 未见公开 MCP 扩展入口，**待验证**（智谱系带 MCP 的编程客户端为 ZCode） |
+
+Qoder CLI 一键添加：
+
+```bash
+qoder mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
+```
+
+VS Code（GitHub Copilot）、Windsurf、Cline、Cherry Studio 等其他支持标准 MCP 协议的客户端，均直接使用上方 `mcpServers` JSON。标注「待验证」的客户端暂未找到公开的自定义 MCP 入口，接入前请以客户端当前版本为准。
