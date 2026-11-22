@@ -148,7 +148,7 @@ claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 
 | 客户端 | 接入方式 |
 | --- | --- |
-| WorkBuddy（腾讯） | 「专家 · 技能 · 连接器」→ 自定义连接器 → 配置 MCP，在 `~/.workbuddy/mcp.json`（用户级）或 `<项目>/.workbuddy/mcp.json`（项目级）的 `mcpServers` 中**合并**加入条目；配置不支持注释，首次连接需点「信任」 |
+| WorkBuddy（腾讯） | 「专家 · 技能 · 连接器」→ 自定义连接器 → 配置 MCP，在 `~/.workbuddy/mcp.json`（用户级）或 `<项目>/.workbuddy/mcp.json`（项目级）的 `mcpServers` 中**合并**加入条目；配置不支持注释，首次连接需点「信任」；**首次连接易报 `MCP initialize timed out`**，成因与规避见下方「冷启动超时」 |
 | 豆包工作（字节） | 桌面客户端「技能 · 连接器 · 伙伴」→ 连接器 → 新建自定义连接器，传输类型选 STDIO，填 `npx` 命令与参数 |
 | 千问办公（阿里） | 桌面客户端「扩展」→「连接器」→ 添加，粘贴 `mcpServers` JSON 或手动配置选 STDIO |
 | Kimi Work（月之暗面） | 走插件体系：Plugin Builder 可导入官方 MCP Registry 中本包的 `server.json`（`com.ruyuejian/ruyuejian-jobs-mcp`）生成插件 |
@@ -160,6 +160,28 @@ claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 | 金山灵犀（WPS 灵犀专业版） | 设置 → 连接器管理 → 自定义连接器，传输模式选 STDIO；配置文件加密，只能走 UI 表单 |
 | KroWork（快手） | 未见公开自定义 MCP 入口，**待验证** |
 | AStudio（科大讯飞） | 设置中启用 MCP；自定义 stdio 具体入口无公开文档，待确认 |
+
+**⚠️ 冷启动超时（WorkBuddy 真机实测，2026-11-22）**
+
+WorkBuddy 守护进程对 stdio 服务的 initialize 探针是**固定 30 秒超时**（日志形如 `stdio-probe-failed {"command":"npx","elapsedMs":30074,"timeoutMs":30000,"stderrChunks":0}`）。`npx -y ruyuejian-jobs-mcp` 在**本包尚未进入 npx 缓存**的首次连接时，必须现场解析并下载整棵依赖树（实测 101 次网络请求、纯下载约 14 秒，加上解压与模块加载总耗时越过 30 秒），进程在装完前就被杀掉 → 缓存写不成功 → 下次重连又从冷启动重来，表现为反复点「重连」始终超时。凡 initialize 超时较短的桌面 Agent 客户端都可能命中同一坑，与包本身无关。
+
+两种规避：
+
+1. **预热一次**：先在终端执行 `npx -y ruyuejian-jobs-mcp`（启动后 Ctrl+C 退出即可），把包写进 npx 缓存，再回客户端启用；此后握手约 3 秒。
+2. **改为本地执行、启动零下载**（推荐，实测握手约 0.45 秒）：先 `npm i -g ruyuejian-jobs-mcp`，再把条目指向全局产物——
+
+```json
+{
+  "mcpServers": {
+    "ruyuejian-jobs": {
+      "command": "node",
+      "args": ["<npm root -g 的输出路径>/ruyuejian-jobs-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+客户端若不解析 PATH 里的 `node`（Windows 常见），把 `command` 换成 node 可执行文件的绝对路径。用 nvm / nvm-windows 管理多版本时，全局目录是**按 node 版本隔离**的（`npm root -g` 随当前版本变化），切换版本后需重新 `npm i -g` 一次，否则配置里的路径会指向空目录。开发调试期也可以直接指向本地 checkout 的 `mcp/dist/index.js`，但那样每次改完 `src` 必须重新 `npm run build`，产物落后于源码时客户端会静默跑旧逻辑。
 
 **AI 编程客户端**
 
