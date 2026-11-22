@@ -16,7 +16,7 @@ npm pack --dry-run
 
 要求：测试全绿；live eval 返回 `result: "passed"`；打包清单不含 `node_modules`、测试、密钥或本地文件。校招时间线返回 `no_results` 在官方源无时间线记录时属于合法结果。
 
-每次发布必须同步三处版本：`package.json`、`package-lock.json`、`server.json`。`server.json.name` 与 `package.json.mcpName` 已固定为 `com.ruyuejian/ruyuejian-jobs-mcp`，不要改名，否则会变成另一个 Registry 条目。
+每次发布必须同步**五处**版本常量（2026-11-22 实测，原写「三处」不全）：`package.json`、`package-lock.json`（root 与 `packages[""]` 两处）、`server.json`（`version` 与 `packages[0].version` 两处），以及源码里的 `src/server.ts`（`McpServer` 的 `serverInfo.version`）与 `src/api.ts`（`User-Agent` 串，`test/api.test.ts` 有对应断言需同改）。漏改后两处的后果是：发布出去的新版本在 MCP `initialize` 响应里仍自报旧版本号——客户端排障时最先读的就是这个字段。`server.json.name` 与 `package.json.mcpName` 已固定为 `com.ruyuejian/ruyuejian-jobs-mcp`，不要改名，否则会变成另一个 Registry 条目。
 
 ## 1. 建立独立公开仓库并发布 npm
 
@@ -48,9 +48,15 @@ npm pack --dry-run
    npm ci
    npm test
    npm run build
-   npm publish --access public
-   npm view ruyuejian-jobs-mcp version
+   npm publish --access public --registry=https://registry.npmjs.org
+   npm view ruyuejian-jobs-mcp version --registry=https://registry.npmjs.org
    ```
+
+   **必须显式带 `--registry=https://registry.npmjs.org`**：本机默认 registry 已固化为只读镜像 npmmirror（见主仓库 AGENTS.md），漏带会发错地方；回读同样要带，否则读到的是镜像的同步滞后值。
+
+   **`PUT 202` 是成功受理，不是失败**（2026-11-22 实测）：npm 对新版本走异步处理，日志形如 `http fetch PUT 202` + `notice Your package is being processed and may take a few minutes to become available.` + `verbose exit 0` / `info ok`。实测 16:05:51 提交 → 16:07:40 registry 落库，约 2 分钟；这段窗口里 `npm view` 仍只显示旧版本，**不要据此判定失败并重发**。落库后用 `dist.shasum` 与本地 `npm pack --dry-run` 的 shasum 对账，可确认 tarball 逐字节一致。
+
+   **鉴权失败的两个面孔**：`npm whoami --registry=https://registry.npmjs.org` 返 401 = token 过期或被吊销；此时 `npm publish` 会返 **404**（npm 把无写权限的发布请求统一伪装成 404，**不是包名问题**，别去改名）。先按第 5 步重新 `npm login`。若账号对 publish 强制 2FA，非交互环境会报 `EOTP`——改在本人终端交互式执行（会走浏览器 web auth），或带 `--otp=<码>`。
 
 7. 用 Claude Desktop 或 Cursor 的真实配置做首次安装验证，确认能列出四个工具，并完成一次搜索和详情调用。不要只以 npm 页面存在作为验收。
 
@@ -136,6 +142,8 @@ mcp-publisher --help
 mcp-publisher validate server.json
 ```
 
+**本机现状（2026-11-22 实测）**：可执行文件落在 `~/mcp-publisher.exe`（版本 1.8.10），**并未进 PATH**，`which mcp-publisher` 查不到。直接用 `~/mcp-publisher.exe <子命令>` 调用即可，不必为一次发布去改 PATH。注意 `mcp-publisher status` 不是「查登录态」——它要求 `--status active|deprecated|deleted`，是改条目状态用的，别拿它探活。
+
 ### 2.2 生成域名证明密钥
 
 在 Git Bash 的一个不进入版本库的私有目录执行。需要 OpenSSL 3+：
@@ -147,7 +155,7 @@ PUBLIC_KEY="$(openssl pkey -in key.pem -pubout -outform DER | tail -c 32 | base6
 printf '%s. IN TXT "v=MCPv1; k=ed25519; p=%s"\n' "$MY_DOMAIN" "$PUBLIC_KEY"
 ```
 
-`key.pem` 是私钥：不得提交、上传或贴到聊天中。后续发布仍需它，应由发布者安全保管。
+`key.pem` 是私钥：不得提交、上传或贴到聊天中。后续发布仍需它，应由发布者安全保管。**本机存放位置为 `~/.mcp-dns-auth/key.pem`**（家目录下的私有目录，不在任何仓库内）；本文只写家目录相对路径，不写含机器用户名的绝对路径——本文件会随 subtree 进入公开仓。
 
 ### 2.3 配置并验证 DNS
 
@@ -179,6 +187,11 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=com.ruyuejian
 验收必须同时满足：命令显示发布成功；API 能检索到条目；条目版本与 npm 一致；官方元数据 `status` 为 `active`。若失败，先读详细错误和官方认证文档，不要反复生成新密钥：
 
 - https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/authentication.mdx
+
+**两条实测坑（2026-11-22，0.1.1 发布时踩到）**：
+
+1. **缓存的 Registry JWT 约一天就过期，每次发版基本都要重登**。`~/.config/mcp-publisher/token.json` 存着上次 `login dns` 换来的 JWT；隔日复用会报 `publish failed: server returned status 401 ... token is expired`。这不是密钥或 DNS 记录坏了——**不要重新生成密钥、不要动 TXT 记录**，按 2.3 第 4 步用同一把 `~/.mcp-dns-auth/key.pem` 重跑 `login dns --domain ruyuejian.com` 即可（成功会打印 `✓ Successfully logged in`，并回显公钥指纹供与 DNS TXT 对账；私钥只进环境变量，不落输出）。
+2. **回读必须按 `version` / `isLatest` 筛，不能取数组第 0 条**。`GET /v0.1/servers?search=...` 返回的是该 name 的**全部历史版本条目**，旧版排在前面且 `_meta["io.modelcontextprotocol.registry/official"].isLatest` 为 `false`。取 `servers[0]` 会读到旧版本号，误判成「发布没生效」——这与 npm `dist-tags.latest` 的语义不同。正确判据：找到 `server.version` 等于本次版本的那条，核对其 `packages[0].version` 与 npm 一致、`status=active`、`isLatest=true`。
 
 ## 3. 提交其他目录
 
