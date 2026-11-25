@@ -177,7 +177,7 @@ export class JobsApi implements JobsGateway {
       const response = await this.fetchImpl(url, {
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'ruyuejian-jobs-mcp/0.1.2',
+          'User-Agent': 'ruyuejian-jobs-mcp/0.1.3',
         },
         signal: controller.signal,
       });

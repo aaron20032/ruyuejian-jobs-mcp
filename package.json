@@ -1,6 +1,6 @@
 {
   "name": "ruyuejian-jobs-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "mcpName": "com.ruyuejian/ruyuejian-jobs-mcp",
   "description": "Search China tech jobs from official company career pages with traceable sources and daily refresh.",
   "type": "module",

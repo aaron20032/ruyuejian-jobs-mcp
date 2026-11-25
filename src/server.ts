@@ -38,7 +38,7 @@ async function invoke<T>(tool: string, operation: () => Promise<ToolEnvelope<T>>
 }
 
 export function createJobsMcpServer(gateway: JobsGateway = new JobsApi()) {
-  const server = new McpServer({ name: 'ruyuejian-jobs-mcp', version: '0.1.2' });
+  const server = new McpServer({ name: 'ruyuejian-jobs-mcp', version: '0.1.3' });
 
   server.registerTool('search_jobs', {
     title: 'Search official-career-page jobs in China',
