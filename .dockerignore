@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+test
+scripts
+*.md
+*.tgz
+*.env
+key.pem
+server.json
+.gitignore

@@ -222,6 +222,40 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=com.ruyuejian
 4. `https://www.ruyuejian.com/llms-full.txt` 包含 MCP 段落。
 5. 移动端与桌面端各检查一次，确认无横向溢出。
 
+## 4b. 部署远程 Streamable HTTP 端点（受发版门禁约束）
+
+远程优先策略的托管端点 **`https://www.ruyuejian.com/api/mcp`** 由本包的 HTTP 入口（`dist/http.js`，bin `ruyuejian-jobs-mcp-http`）提供，与 stdio 共用 `createJobsMcpServer()` 工厂，工具与数据契约不分叉。**部署属生产发版动作**，必须等待用户明确下达包含「请将最新项目部署到腾讯云服务器」的指令，本手册不得绕过门禁。
+
+**为什么是这个 URL（2026-11-25 只读探测定案，勿改回 `/mcp`）**：主域 `/mcp` 已被站内落地页占用（`www.ruyuejian.com/mcp` 返 200 HTML），apex `ruyuejian.com` 全路径 301 到 www——所以 `ruyuejian.com/mcp` 会被 301 到落地页，MCP 客户端拿不到端点。`/api/mcp` 走站点既有动态 `/api` 前缀（POST 过 EdgeOne 已验证），零新增 DNS/证书，只差一条 nginx location。
+
+部署形态（仓库已备齐，随发版生效）：
+
+1. **独立容器**：`docker-compose.prod.yml` 的 `mcp` 服务（镜像 `ruyuejian_container/mcp`，随 `build-images.bat`/`push-images.bat` 同 TAG 构建推送）。容器内监听 `0.0.0.0:8080`，MCP 路径对齐公网路径 `/api/mcp`，不发布宿主端口，仅内网可达。
+2. **nginx 反代（服务器 `~/nginx.conf`，分叉维护规范：先 diff 再最小增量，严禁整文件覆盖）**——最长前缀匹配自动优先于既有 `/api/` 段，放在哪都生效：
+   ```nginx
+   location /api/mcp {
+       proxy_pass http://mcp:8080;   # 不带 URI，路径原样透传（容器路径=公网路径）
+       proxy_http_version 1.1;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_read_timeout 300s;      # SSE 长连接余量
+   }
+   ```
+   改完 `docker exec ruyuejian-frontend nginx -t && docker exec ruyuejian-frontend nginx -s reload`；仓库 `frontend/nginx.conf` 同步加同段保持基线一致。
+3. **限流 IP 来源**：生产**必须** `RUYUEJIAN_MCP_TRUST_PROXY=1`（compose 已设）——容器内 `req.socket.remoteAddress` 是 nginx 容器 IP，不开 trust proxy 等于**全体用户共用一个 60/min 桶**。左段 XFF 理论可伪造（弱信号，与驾驶舱爬虫治理同口径）；硬上限靠共享上游桶（30 req/min 进程级）+ 可选 Bearer（`MCP_HTTP_TOKEN`，.env.prod 注入）。
+4. **上游走内网**：compose 已设 `RUYUEJIAN_API_BASE_URL=http://backend:3000/api`，免绕 EdgeOne/公网回环，省出口带宽。
+5. 多副本时进程内 limiter 失去全局语义，须在 nginx/Redis 层做共享限流（当前单副本，暂不涉及）。缓存放心：SDK 响应自带 `Cache-Control: no-cache, no-transform`，边缘 JSON（healthz/401/429）自带 `no-store`，EdgeOne 跟随源站。
+
+发版后验收（只读）：
+
+1. `docker compose ps` mcp 容器 healthy（healthcheck 打容器内 `/healthz`）；`docker exec ruyuejian-mcp wget -qO- http://127.0.0.1:8080/healthz` 返回 `{"status":"ok"}`。
+2. `curl -s -X POST https://www.ruyuejian.com/api/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize",...}'` 返回 JSON-RPC result；再用真实 MCP 客户端 `claude mcp add --transport http ruyuejian-jobs https://www.ruyuejian.com/api/mcp` 跑 `listTools`/`search_jobs`，验 `contractVersion 1.0.0` 且带 `source.officialUrl`。
+3. 连续打满限流后出现 429 + `Retry-After`；若启用 Bearer，无 token 返 401。
+4. `server.json` 的 `remotes[0].url`（`https://www.ruyuejian.com/api/mcp`）与实际一致；npm/Registry 发布时回读确认远程条目生效。
+5. 站内 `/mcp` 页的接入口径已随前端改动切远程优先（含 stdio 兜底 tab）——**随同一次发版生效**，勿在 nginx location 未加时单独放前端页面（会宣传一个 404 端点）。`llms.txt`/`llms-full.txt` 的 MCP 段落部署后同步补远程端点口径（端点未上线前不改，避免教 AI 访问 404）。
+
+**灰度纪律**：先小范围验证滥用面与限流有效性（盯 `/api/mcp` 的 429 率与上游桶命中），再对外推广远程 URL；宁可暂缓放量，也不要让一个随时可能因滥用被迫下线的端点损伤已接入用户的信任。回滚：nginx 删 location 即断外路（容器可留），server.json `remotes` 随下次 npm 发布移除。
+
 ## 5. 集中曝光文案
 
 前提：npm、官方 Registry、真实客户端安装均已验收，再安排发布。HN/Reddit 选择周二至周四；使用有真实历史的账号，并在评论区回答数据覆盖、刷新、爬取方式和隐私问题。

@@ -3,18 +3,24 @@
   "name": "com.ruyuejian/ruyuejian-jobs-mcp",
   "title": "Ruyuejian Jobs",
   "description": "Search China tech jobs from official career pages with source URLs and daily refresh.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/aaron20032/ruyuejian-jobs-mcp.git",
     "source": "github"
   },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://www.ruyuejian.com/api/mcp"
+    }
+  ],
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "ruyuejian-jobs-mcp",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
