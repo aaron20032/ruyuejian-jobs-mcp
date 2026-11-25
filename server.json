@@ -9,6 +9,12 @@
     "url": "https://github.com/aaron20032/ruyuejian-jobs-mcp.git",
     "source": "github"
   },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://www.ruyuejian.com/api/mcp"
+    }
+  ],
   "packages": [
     {
       "registryType": "npm",

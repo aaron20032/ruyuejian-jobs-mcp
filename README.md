@@ -24,7 +24,39 @@ The response contains active matching jobs with `source.officialUrl`, `source.pu
 
 ## Clients
 
-### Claude Desktop / Cursor / generic `mcpServers`
+Two transports are available and share one tool surface and data contract:
+
+- **Remote Streamable HTTP (recommended)** — zero install, no Node.js, no cold-start download. Point your client at the hosted endpoint.
+- **Local stdio** — fallback for clients that only accept a local command, or for offline / self-hosted use.
+
+### Remote Streamable HTTP (recommended)
+
+Point any MCP client that supports remote servers at `https://www.ruyuejian.com/api/mcp`.
+
+Generic `mcpServers` (URL form):
+
+```json
+{
+  "mcpServers": {
+    "ruyuejian-jobs": {
+      "type": "streamable-http",
+      "url": "https://www.ruyuejian.com/api/mcp"
+    }
+  }
+}
+```
+
+Claude Code:
+
+```bash
+claude mcp add --transport http ruyuejian-jobs https://www.ruyuejian.com/api/mcp
+```
+
+The hosted endpoint is public, read-only and rate-limited per IP. If the operator enabled a bearer token, send `Authorization: Bearer <token>`.
+
+> The hosted endpoint goes live with the gated production deployment (see [PUBLISHING.md](./PUBLISHING.md)). Until it is deployed, self-host the HTTP server (below) or use the local stdio package.
+
+### Local stdio (fallback)
 
 ```json
 {
@@ -37,13 +69,38 @@ The response contains active matching jobs with `source.officialUrl`, `source.pu
 }
 ```
 
-### Claude Code
+Claude Code:
 
 ```bash
 claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 ```
 
 Node.js 20 or newer is required. For a local checkout, build with `npm run build`, then use `node /absolute/path/to/mcp/dist/index.js` as the command instead.
+
+### Self-hosting the HTTP endpoint
+
+The same package ships an HTTP entry. Build, then run it behind your own reverse proxy:
+
+```bash
+npm run build
+npm run start:http            # node dist/http.js
+# or: npx -y ruyuejian-jobs-mcp-http
+```
+
+Environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `RUYUEJIAN_MCP_HTTP_HOST` | `127.0.0.1` | Bind address; set `0.0.0.0` only behind a proxy |
+| `RUYUEJIAN_MCP_HTTP_PORT` (or `PORT`) | `8080` | Listen port |
+| `RUYUEJIAN_MCP_HTTP_PATH` | `/mcp` | MCP endpoint path |
+| `RUYUEJIAN_MCP_HTTP_TOKEN` | _(unset)_ | When set, requires `Authorization: Bearer <token>` |
+| `RUYUEJIAN_MCP_HTTP_RATE_LIMIT` | `60` | Per-IP requests per minute |
+| `RUYUEJIAN_MCP_BLOCK_BOTS` | `1` | Set `0` to disable the scraper User-Agent block |
+| `RUYUEJIAN_MCP_TRUST_PROXY` | `0` | Set `1` to read the client IP from `X-Forwarded-For` |
+| `RUYUEJIAN_API_BASE_URL` | `https://www.ruyuejian.com/api` | Upstream jobs API |
+
+`GET /healthz` returns a liveness probe. The server is stateless (a fresh session per request), so it scales horizontally without sticky sessions; the per-IP limiter is per-instance, so put a shared limiter at the proxy when running multiple replicas.
 
 ## Tools
 
@@ -93,7 +150,7 @@ The existing public API has no server-side relative-date filter. `postedWithinDa
 
 Upstream timeout, HTTP 429/5xx, invalid responses, and local rate limiting return `status=error` with no fabricated fallback data. The package limits itself to 30 upstream requests per rolling minute, 50 jobs per normal page, 100 records per date scan, and a 10-second upstream timeout.
 
-`RUYUEJIAN_API_BASE_URL` can point to another HTTP(S) API base for development. It defaults to `https://ruyuejian.com/api`.
+`RUYUEJIAN_API_BASE_URL` can point to another HTTP(S) API base for development. It defaults to `https://www.ruyuejian.com/api` (canonical www host; the apex domain 301-redirects to www).
 
 ## Measurement and live eval
 
@@ -119,7 +176,28 @@ Maintainers: see [PUBLISHING.md](./PUBLISHING.md) for npm, Official Registry, di
 
 **国内访问**：本仓库的权威源是 GitHub（`github.com/aaron20032/ruyuejian-jobs-mcp`）。若访问 GitHub 较慢，可用只读镜像 `gitee.com/mindisland_1_0/ruyuejian-jobs-mcp` 浏览与克隆代码；镜像由 GitHub 单向同步，**Issue、PR 与代码提交请一律提到 GitHub**，在镜像仓的提交会被同步覆盖。
 
-**快速接入**：需要 Node.js 20 或更高版本。把下面的配置加进客户端的 `mcpServers`，重启客户端后即可让 AI 调用如约见岗位工具：
+**快速接入（远程优先）**：本服务同时提供**远程 Streamable HTTP（推荐）**与**本地 stdio**两种形态，共用同一套工具与数据契约。远程形态免安装、免 Node.js、免冷启动下载，把下面的配置加进客户端即可：
+
+```json
+{
+  "mcpServers": {
+    "ruyuejian-jobs": {
+      "type": "streamable-http",
+      "url": "https://www.ruyuejian.com/api/mcp"
+    }
+  }
+}
+```
+
+Claude Code 用户执行：
+
+```bash
+claude mcp add --transport http ruyuejian-jobs https://www.ruyuejian.com/api/mcp
+```
+
+> 托管端点随受门禁约束的生产部署上线（见 [PUBLISHING.md](./PUBLISHING.md)）；上线前可自托管 HTTP 服务（见上文 Self-hosting）或改用本地 stdio 包。
+
+**本地 stdio（兜底）**：需要 Node.js 20 或更高版本，适用于只接受本地命令的客户端或离线/自托管场景：
 
 ```json
 {
@@ -132,8 +210,6 @@ Maintainers: see [PUBLISHING.md](./PUBLISHING.md) for npm, Official Registry, di
 }
 ```
 
-Claude Code 用户执行：
-
 ```bash
 claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 ```
@@ -142,7 +218,7 @@ claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 
 ### 支持的客户端
 
-本服务为标准 stdio 型 MCP，凡支持自定义 MCP 的客户端均可接入（本包已同步 npmmirror）。除 Claude Desktop / Cursor / Claude Code 外，以下国内主流客户端也在支持范围内，多数直接复用上方 `mcpServers` JSON。
+本服务同时提供**远程 Streamable HTTP（推荐）**与**本地 stdio**两种形态，凡支持自定义 MCP 的客户端均可接入（stdio 包已同步 npmmirror）。**优先用远程 URL 接入**——免安装、免冷启动，且能覆盖只支持远程形态的客户端；仅当客户端只接受本地命令时才回退 stdio。除 Claude Desktop / Cursor / Claude Code 外，以下国内主流客户端也在支持范围内。
 
 **桌面办公 Agent 客户端**
 
@@ -155,7 +231,7 @@ claude mcp add ruyuejian-jobs -- npx -y ruyuejian-jobs-mcp
 | Marvis（腾讯应用宝） | 工具箱 → 连接（MCP/CLI）→ 我的连接 → 自定义连接；传输类型以客户端表单为准 |
 | QClaw（腾讯电脑管家） | 设置或对话内配置；OpenClaw 系，`~/.openclaw/openclaw.json` 的 `mcpServers`（type: stdio）或 `openclaw mcp add` |
 | DeepSeek Harness | **不读 `mcpServers` JSON**：在 `~/.dsh/cordis.patch.yml` 用内置插件 `@deepseek-ai/dsh-mcp-client` 声明本服务（transport: stdio，command: npx，args: `["-y","ruyuejian-jobs-mcp"]`），YAML 结构以其官方文档为准 |
-| 百度搭子（DuMate） | **暂不可直连**：官方当前仅支持远程 streamableHttp/SSE 型 MCP，本地 stdio 包待远程形态上线后接入 |
+| 百度搭子（DuMate） | 官方仅支持远程 streamableHttp/SSE 型 MCP——**用远程 URL 接入**（`https://www.ruyuejian.com/api/mcp`，托管端点上线后生效），本地 stdio 包不适用 |
 | 纳米 Work（360） | 内置 MCP/连接器生态；自定义本地 stdio 入口未见公开文档，**待验证** |
 | 金山灵犀（WPS 灵犀专业版） | 设置 → 连接器管理 → 自定义连接器，传输模式选 STDIO；配置文件加密，只能走 UI 表单 |
 | KroWork（快手） | 未见公开自定义 MCP 入口，**待验证** |

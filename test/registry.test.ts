@@ -15,4 +15,11 @@ describe('official registry metadata', () => {
     expect(server.description.length).toBeLessThanOrEqual(100);
     expect(server.packages[0].environmentVariables).toBeUndefined();
   });
+
+  it('declares the remote Streamable HTTP endpoint as the primary transport', () => {
+    expect(Array.isArray(server.remotes)).toBe(true);
+    expect(server.remotes[0]).toMatchObject({ type: 'streamable-http', url: 'https://www.ruyuejian.com/api/mcp' });
+    // stdio stays available as the local fallback package.
+    expect(server.packages[0].transport).toMatchObject({ type: 'stdio' });
+  });
 });

@@ -5,7 +5,8 @@
   "description": "Search China tech jobs from official company career pages with traceable sources and daily refresh.",
   "type": "module",
   "bin": {
-    "ruyuejian-jobs-mcp": "dist/index.js"
+    "ruyuejian-jobs-mcp": "dist/index.js",
+    "ruyuejian-jobs-mcp-http": "dist/http.js"
   },
   "files": [
     "dist",
@@ -14,6 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "start:http": "node dist/http.js",
     "eval:live": "node scripts/eval-live.mjs",
     "prepack": "npm run build"
   },

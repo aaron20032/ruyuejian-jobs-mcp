@@ -1,6 +1,8 @@
 import { MAX_REQUESTS_PER_MINUTE } from './contract.js';
 
-export const DEFAULT_API_BASE_URL = 'https://ruyuejian.com/api';
+// Canonical www host (apex ruyuejian.com 301-redirects every path to www; using the
+// canonical host removes the redirect hop and the redirect dependency).
+export const DEFAULT_API_BASE_URL = 'https://www.ruyuejian.com/api';
 
 export interface UpstreamJob {
   id: string;
